@@ -1,8 +1,11 @@
 # IMLine.py
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
+from flask_swagger_ui import get_swaggerui_blueprint
 import config
 import logging
 import requests
+import os
+import shutil
 from linebot import LineBotApi
 from linebot.exceptions import LineBotApiError
 from linebot.models import TextSendMessage
@@ -37,7 +40,22 @@ def get_line_user_display_name(user_id: str) -> str:
         logger.warning(f"Failed to fetch display name for user_id={user_id}: {e}")
         return "User"
 
-@app.route('/webhook', methods=['POST'], strict_slashes=False)
+# --- Swagger UI Setup ---
+SWAGGER_URL = '/IMLine/swagger'
+API_URL = '/static/openapi.yaml'
+swaggerui_blueprint = get_swaggerui_blueprint(
+    SWAGGER_URL,
+    API_URL,
+    config={'app_name': "IM Line Service"}
+)
+app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
+
+@app.route('/static/<path:path>')
+def send_static(path):
+    return send_from_directory('static', path)
+# ------------------------
+
+@app.route('/IMLine/webhook', methods=['POST'], strict_slashes=False)
 def webhook():
     # Log request headers and raw payload
     logger.debug(f"Received webhook request with headers: {dict(request.headers)}")
@@ -94,7 +112,8 @@ def webhook():
             "username": display_name
         }
         try:
-            response = requests.post(config.IOT_BROKER_URL + "/parse_message", json=payload, timeout=5)
+            # Forward to IoT Broker
+            response = requests.post(config.IOT_BROKER_URL + "/IoTBroker/parse_message", json=payload, timeout=5)
             if response.status_code == 200:
                 logger.info("Successfully processed by IoT Broker")
             else:
@@ -104,7 +123,7 @@ def webhook():
 
     return {"ok": True}, 200
 
-@app.route('/send_message', methods=['POST'])
+@app.route('/IMLine/send_message', methods=['POST'])
 def send_line_message():
     try:
         data = request.json
@@ -120,9 +139,16 @@ def send_line_message():
         return jsonify({"ok": False, "message": str(e)}), 500
     
 if __name__ == "__main__":
+    # Ensure static directory exists and openapi.yaml is available
+    if not os.path.exists('static'):
+        os.makedirs('static')
+    if os.path.exists('openapi.yaml'):
+        shutil.copy('openapi.yaml', 'static/openapi.yaml')
+
     try:
+        logger.info(f"Starting IMLine service on port {config.LINE_API_PORT}")
+        logger.info(f"Swagger UI available at http://localhost:{config.LINE_API_PORT}{SWAGGER_URL}")
         app.run(host="0.0.0.0", port=config.LINE_API_PORT, threaded=True, debug=False)
-        logger.info(f"IMLine server started on port {config.LINE_API_PORT}")
     except Exception as e:
         logger.error(f"Failed to start IMLine server: {e}")
         raise

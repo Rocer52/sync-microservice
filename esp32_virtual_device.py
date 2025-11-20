@@ -99,18 +99,17 @@ def signature():
     else:
         return jsonify({"status": "error", "message": "Invalid signature"}), 403
 
-@app.route('/Enable', methods=['GET', 'POST'])
-def enable():
+# 新的 ESP32 API 路徑
+@app.route('/ESP32/<device_id>/Enable', methods=['GET', 'POST'])
+def enable_esp32(device_id):
     if request.method == 'POST':
         data = request.get_json(silent=True) or {}
-        device_id = data.get('device_id')
         chat_id = data.get('chat_id', "default")
         timestamp = data.get('timestamp')
         signature_b64 = data.get('signature')
         username = data.get('username', "User")
         bot_token = data.get('bot_token', "")
     else:
-        device_id = request.args.get('device_id')
         chat_id = request.args.get('chat_id', "default")
         timestamp = request.args.get('timestamp')
         signature_b64 = request.args.get('signature')
@@ -118,7 +117,7 @@ def enable():
         bot_token = request.args.get('bot_token', "")
 
     if not all([device_id, chat_id, timestamp, signature_b64]):
-        logger.error(f"Missing required parameters in /Enable request: device_id={device_id}, chat_id={chat_id}, timestamp={timestamp}, signature_b64={signature_b64}")
+        logger.error(f"Missing required parameters in /ESP32/{device_id}/Enable request: device_id={device_id}, chat_id={chat_id}, timestamp={timestamp}, signature_b64={signature_b64}")
         return jsonify({"status": "error", "message": "Missing required parameters"}), 400
 
     if not verify_signature(chat_id, timestamp, signature_b64):
@@ -139,18 +138,16 @@ def enable():
         "username": username
     }), 200
 
-@app.route('/Disable', methods=['GET', 'POST'])
-def disable():
+@app.route('/ESP32/<device_id>/Disable', methods=['GET', 'POST'])
+def disable_esp32(device_id):
     if request.method == 'POST':
         data = request.get_json(silent=True) or {}
-        device_id = data.get('device_id')
         chat_id = data.get('chat_id', "default")
         timestamp = data.get('timestamp')
         signature_b64 = data.get('signature')
         username = data.get('username', "User")
         bot_token = data.get('bot_token', "")
     else:
-        device_id = request.args.get('device_id')
         chat_id = request.args.get('chat_id', "default")
         timestamp = request.args.get('timestamp')
         signature_b64 = request.args.get('signature')
@@ -158,7 +155,7 @@ def disable():
         bot_token = request.args.get('bot_token', "")
 
     if not all([device_id, chat_id, timestamp, signature_b64]):
-        logger.error(f"Missing required parameters in /Disable request: device_id={device_id}, chat_id={chat_id}, timestamp={timestamp}, signature_b64={signature_b64}")
+        logger.error(f"Missing required parameters in /ESP32/{device_id}/Disable request: device_id={device_id}, chat_id={chat_id}, timestamp={timestamp}, signature_b64={signature_b64}")
         return jsonify({"status": "error", "message": "Missing required parameters"}), 400
 
     if not verify_signature(chat_id, timestamp, signature_b64):
@@ -179,18 +176,16 @@ def disable():
         "username": username
     }), 200
 
-@app.route('/GetStatus', methods=['GET', 'POST'])
-def get_status():
+@app.route('/ESP32/<device_id>/GetStatus', methods=['GET', 'POST'])
+def get_status_esp32(device_id):
     if request.method == 'POST':
         data = request.get_json(silent=True) or {}
-        device_id = data.get('device_id')
         chat_id = data.get('chat_id', "default")
         timestamp = data.get('timestamp')
         signature_b64 = data.get('signature')
         username = data.get('username', "User")
         bot_token = data.get('bot_token', "")
     else:
-        device_id = request.args.get('device_id')
         chat_id = request.args.get('chat_id', "default")
         timestamp = request.args.get('timestamp')
         signature_b64 = request.args.get('signature')
@@ -198,7 +193,7 @@ def get_status():
         bot_token = request.args.get('bot_token', "")
 
     if not all([device_id, chat_id, timestamp, signature_b64]):
-        logger.error(f"Missing required parameters in /GetStatus request: device_id={device_id}, chat_id={chat_id}, timestamp={timestamp}, signature_b64={signature_b64}")
+        logger.error(f"Missing required parameters in /ESP32/{device_id}/GetStatus request: device_id={device_id}, chat_id={chat_id}, timestamp={timestamp}, signature_b64={signature_b64}")
         return jsonify({"status": "error", "message": "Missing required parameters"}), 400
 
     if not verify_signature(chat_id, timestamp, signature_b64):
@@ -217,6 +212,19 @@ def get_status():
         "device_id": device_id,
         "username": username
     }), 200
+
+# 保持向後兼容的舊端點（可選）
+@app.route('/Enable', methods=['GET', 'POST'])
+def enable_legacy():
+    return enable_esp32(config.DEVICE_ID)
+
+@app.route('/Disable', methods=['GET', 'POST'])
+def disable_legacy():
+    return disable_esp32(config.DEVICE_ID)
+
+@app.route('/GetStatus', methods=['GET', 'POST'])
+def get_status_legacy():
+    return get_status_esp32(config.DEVICE_ID)
 
 if __name__ == "__main__":
     try:

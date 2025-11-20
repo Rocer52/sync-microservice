@@ -26,12 +26,12 @@ try:
     GPIO.output(RELAY_1, GPIO.HIGH)
     GPIO.output(RELAY_2, GPIO.HIGH)
 except (ImportError, RuntimeError):
-    # 开发环境下使用模拟
+    # 開發環境下使用模擬
     from fake_rpi.RPi import GPIO
     GPIO.setmode(GPIO.BCM)
     RELAY_1 = 17
     RELAY_2 = 27
-    # 注意：这些调用在模拟环境下不会有实际效果
+    # 注意：這些調用在模擬環境下不會有實際效果
     GPIO.setup(RELAY_1, GPIO.OUT)
     GPIO.setup(RELAY_2, GPIO.OUT)
     GPIO.output(RELAY_1, GPIO.HIGH)
@@ -166,18 +166,17 @@ def signature():
     else:
         return jsonify({"status": "error", "message": "Invalid signature"}), 403
 
-@app.route('/Enable', methods=['GET', 'POST'])
-def enable():
+# 新的 Raspberry Pi API 路徑
+@app.route('/Pi/<device_id>/Enable', methods=['GET', 'POST'])
+def enable_pi(device_id):
     if request.method == 'POST':
         data = request.get_json(silent=True) or {}
-        device_id = data.get('device_id')
         chat_id = data.get('chat_id', "default")
         timestamp = data.get('timestamp')
         signature_b64 = data.get('signature')
         username = data.get('username', "User")
         bot_token = data.get('bot_token', "")
     else:
-        device_id = request.args.get('device_id')
         chat_id = request.args.get('chat_id', "default")
         timestamp = request.args.get('timestamp')
         signature_b64 = request.args.get('signature')
@@ -203,18 +202,16 @@ def enable():
         "username": username
     }), 200
 
-@app.route('/Disable', methods=['GET', 'POST'])
-def disable():
+@app.route('/Pi/<device_id>/Disable', methods=['GET', 'POST'])
+def disable_pi(device_id):
     if request.method == 'POST':
         data = request.get_json(silent=True) or {}
-        device_id = data.get('device_id')
         chat_id = data.get('chat_id', "default")
         timestamp = data.get('timestamp')
         signature_b64 = data.get('signature')
         username = data.get('username', "User")
         bot_token = data.get('bot_token', "")
     else:
-        device_id = request.args.get('device_id')
         chat_id = request.args.get('chat_id', "default")
         timestamp = request.args.get('timestamp')
         signature_b64 = request.args.get('signature')
@@ -240,18 +237,16 @@ def disable():
         "username": username
     }), 200
 
-@app.route('/GetStatus', methods=['GET', 'POST'])
-def get_status():
+@app.route('/Pi/<device_id>/GetStatus', methods=['GET', 'POST'])
+def get_status_pi(device_id):
     if request.method == 'POST':
         data = request.get_json(silent=True) or {}
-        device_id = data.get('device_id')
         chat_id = data.get('chat_id', "default")
         timestamp = data.get('timestamp')
         signature_b64 = data.get('signature')
         username = data.get('username', "User")
         bot_token = data.get('bot_token', "")
     else:
-        device_id = request.args.get('device_id')
         chat_id = request.args.get('chat_id', "default")
         timestamp = request.args.get('timestamp')
         signature_b64 = request.args.get('signature')
@@ -275,28 +270,33 @@ def get_status():
         "username": username
     }), 200
 
-if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        cmd = sys.argv[1].lower()
-        if cmd == "on":
-            turn_on_light()
-            print("[CLI] 燈已開啟")
-            sys.exit(0)
-        elif cmd == "off":
-            turn_off_light()
-            print("[CLI] 燈已關閉")
-            sys.exit(0)
-        elif cmd == "blink":
-            blink_light()
-            print("[CLI] 燈閃爍 3 次")
-            sys.exit(0)
-        else:
-            print("用法: python3 raspberrypi_virtual_device.py [on|off|blink]")
-            sys.exit(1)
+# 保持向後兼容的舊端點（可選）
+@app.route('/Enable', methods=['GET', 'POST'])
+def enable_legacy():
+    return enable_pi("raspberrypi_light_001")
 
+@app.route('/Disable', methods=['GET', 'POST'])
+def disable_legacy():
+    return disable_pi("raspberrypi_light_001")
+
+@app.route('/GetStatus', methods=['GET', 'POST'])
+def get_status_legacy():
+    return get_status_pi("raspberrypi_light_001")
+
+def cleanup():
+    """Cleanup GPIO on exit"""
+    try:
+        GPIO.cleanup()
+        logger.info("GPIO cleanup completed")
+    except Exception as e:
+        logger.error(f"Error during GPIO cleanup: {e}")
+
+atexit.register(cleanup)
+
+if __name__ == "__main__":
     try:
         load_public_key()
-        logger.info(f"Starting Flask app on port 5011")
+        logger.info("Starting Raspberry Pi Virtual Device on port 5011")
         app.run(host="0.0.0.0", port=5011, debug=False)
     except KeyboardInterrupt:
         logger.info("Shutting down...")

@@ -1,9 +1,11 @@
 # IMTelegram.py
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
+from flask_swagger_ui import get_swaggerui_blueprint
 import config
 import logging
 import requests
 import os
+import shutil
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -16,7 +18,22 @@ def add_chat_id(chat_id: str):
     chat_ids.add(chat_id)
     logger.debug(f"Added chat_id={chat_id} to chat_ids set")
 
-@app.route('/webhook', methods=['POST'])
+# --- Swagger UI Setup ---
+SWAGGER_URL = '/IMTelegram/swagger'
+API_URL = '/static/openapi.yaml'
+swaggerui_blueprint = get_swaggerui_blueprint(
+    SWAGGER_URL,
+    API_URL,
+    config={'app_name': "IM Telegram Service"}
+)
+app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
+
+@app.route('/static/<path:path>')
+def send_static(path):
+    return send_from_directory('static', path)
+# ------------------------
+
+@app.route('/IMTelegram/webhook', methods=['POST'])
 def webhook():
     data = request.get_json()
     if data is None or 'message' not in data:
@@ -43,7 +60,8 @@ def webhook():
         "username": username
     }
     try:
-        response = requests.post(config.IOT_BROKER_URL + "/parse_message", json=payload, timeout=5)
+        # Forward to IoT Broker
+        response = requests.post(config.IOT_BROKER_URL + "/IoTBroker/parse_message", json=payload, timeout=5)
         if response.status_code == 200:
             logger.info("Successfully processed by IoT Broker")
         else:
@@ -53,7 +71,7 @@ def webhook():
 
     return {"ok": True}, 200
 
-@app.route('/send_message', methods=['POST'])
+@app.route('/IMTelegram/send_message', methods=['POST'])
 def send_telegram_message():
     try:
         data = request.json
@@ -72,6 +90,12 @@ def send_telegram_message():
         return jsonify({"ok": False, "message": str(e)}), 500
 
 if __name__ == "__main__":
+    # Ensure static directory exists and openapi.yaml is available
     if not os.path.exists('static'):
         os.makedirs('static')
+    if os.path.exists('openapi.yaml'):
+        shutil.copy('openapi.yaml', 'static/openapi.yaml')
+    
+    logger.info(f"Starting IMTelegram service on port {config.TELEGRAM_API_PORT}")
+    logger.info(f"Swagger UI available at http://localhost:{config.TELEGRAM_API_PORT}{SWAGGER_URL}")
     app.run(host="0.0.0.0", port=config.TELEGRAM_API_PORT)

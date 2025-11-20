@@ -5,7 +5,7 @@ import threading
 import time
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Thread-safe lock for configuration access
@@ -230,11 +230,11 @@ _cached_bindings = load_bindings()
 start_config_polling(config_file_path)
 
 # LINE and Telegram API configurations
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', 'YOUR_TELEGRAM_BOT_TOKEN')
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '7512146056:AAGHv1fbjAGI2crp8omo4j3WSbzKckso_ko')
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
 
 LINE_API_URL = os.getenv('LINE_API_URL', 'https://api.line.me/v2/bot/message')
-LINE_ACCESS_TOKEN = os.getenv('LINE_ACCESS_TOKEN', 'YOUR_LINE_ACCESS_TOKEN')
+LINE_ACCESS_TOKEN = os.getenv('LINE_ACCESS_TOKEN', '6rJb6v5xfB+GByowhbjpXbRIz7iNwb/MU0rJQbUjVcKVM5l5PN901F7EfJnS0fd6ZCSiBc7DEaHc/5DC4t4/pl6RuB9zQXxdW38lcdiuHToGb+nwJqHSPcVudAl3/F+x/k9blGyakcHr0+MXBVocYwdB04t89/1O/w1cDnyilFU=')
 
 # IOTQueue (MQTT) and RabbitMQ configurations
 IOTQUEUE_HOST = os.getenv('IOTQUEUE_HOST', 'localhost')
